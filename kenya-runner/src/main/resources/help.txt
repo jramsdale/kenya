@@ -1,0 +1,42 @@
+
+Kenya Runner is a utility that runs Java applications by assembling a
+runtime classpath using Maven metadata associated with jars. This dramatically
+simplifies the commandline required to run Java applications comprising
+multiple jars. More info at: https://github.com/jramsdale/kenya
+
+Usage: java [options...] -jar kenya.jar [args...]
+
+where options include:
+    -Dkenya.gav=<gav>   
+            Maven artifact address in groupId:artifactId:version format. 
+            Cannot be used with kenya.jar option.
+           
+    -Dkenya.jar=<jarPath>
+            Jar file to run. Must contain a valid pom. Cannot be used with
+            kenya.gav option.
+           
+    -Dkenya.main=<mainClass>
+            Fully qualified name of main class to run
+            Defaults to value of Main-Class attribute in MANIFEST.MF
+                
+    -Dkenya.type=<artifactType>
+    
+    -Dkenya.scope=<mavenScope>
+            Maven classpath scope, one of "compile", "provided", "runtime"
+            or "test"
+            Defaults to: compile
+    
+    -Dkenya.logLevel=<logLevel>
+            Log level for Kenya output, one of: "TRACE", "DEBUG", "INFO", 
+            "WARN", or "ERROR"
+            Defaults to: INFO
+    
+    -Dkenya.repo=<repoDirPath>
+            Path to local Maven repository.
+            Defaults to: $HOME/.m2/repository
+    
+    -Dkenya.settings=<settingsPath>
+            Path to user's settings.xml file.
+            Defaults to: $HOME/.m2/settings.xml
+
+and args are passed through to the referenced application

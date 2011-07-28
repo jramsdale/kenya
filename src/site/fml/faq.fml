@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<faqs xmlns="http://maven.apache.org/FML/1.0.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/FML/1.0.1 http://maven.apache.org/xsd/fml-1.0.1.xsd">
+
+    <part id="background">
+        <title>Background</title>
+        <faq id="Kenya">
+            <question>What is Kenya?</question>
+            <answer>
+                <p>Kenya is an application runner that uses Maven metadata to provision artifacts and to assemble a
+                    runtime classpath. This allows a user to run a Java application without packaging it up if there is
+                    accurate Maven artifact metadata provided or discoverable.
+                </p>
+            </answer>
+        </faq>
+        <faq id="name">
+            <question>Why the name Kenya?</question>
+            <answer>
+                <p>The country of Kenya is known for its great runners. You saw that coming, right?
+                </p>
+            </answer>
+        </faq>
+        <faq id="production">
+            <question>Should I use Kenya to run my production system?</question>
+            <answer>
+                <p>Absolutely. Let us know how that goes... Seriously, Kenya should not replace building and packaging
+                    real Java applications, but it can be handy for simplifying the writing/deploying/running a certain
+                    class of application. Use the right tool for the job.
+                </p>
+            </answer>
+        </faq>
+    </part>
+    <!-- 
+    <part id="usage">
+        <title>Usage</title>
+        <faq id="Kenya">
+            <question>What is Kenya?</question>
+            <answer>
+            </answer>
+        </faq>
+    </part>
+     -->
+</faqs>

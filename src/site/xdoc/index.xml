@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document xmlns="http://maven.apache.org/XDOC/2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/XDOC/2.0 http://maven.apache.org/xsd/xdoc-2.0.xsd">
+    <properties>
+        <title>Introduction</title>
+        <author>Jeff Ramsdale</author>
+    </properties>
+    <body>
+        <section name="Introduction">
+            <div>
+                <div id="emptyrightbox">
+                    <!-- <p> <a href="http://www.apache.org/licenses/LICENSE-2.0.html"> <img src="images/license_asl.png" 
+                        height="50px" /> </a> </p> -->
+                </div>
+            </div>
+
+            <div>
+                <p>
+                    Kenya is a tool for running Java applications using the
+                    <a href="http://maven.apache.org">Maven</a>
+                    project's
+                    <a href="https://docs.sonatype.org/display/AETHER/Home">Aether</a>
+                    artifact resolver to provision artifacts and provide a runtime classpath.
+                </p>
+            </div>
+        </section>
+    </body>
+</document>

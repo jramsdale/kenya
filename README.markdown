@@ -92,9 +92,9 @@ The help text:
                 Defaults to: compile
     
         -Dkenya.logLevel=<logLevel>
-                Log level for Kenya output, one of: "DEBUG", "INFO", "WARN", 
-                "ERROR", "FATAL", or "DISABLED"
-                Defaults to: ERROR
+                Log level for Kenya output, one of: "TRACE", "DEBUG", "INFO", 
+                "WARN", or "ERROR"
+                Defaults to: INFO
     
         -Dkenya.repo=<repoDirPath>
                 Path to local Maven repository.
