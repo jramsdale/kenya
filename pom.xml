@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.github.jramsdale.kenya</groupId>
     <artifactId>kenya-parent</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Kenya</name>
     <description>A tool for running Java applications using Maven's Aether artifact resolver to provision artifacts and provide a runtime classpath.</description>
