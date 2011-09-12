@@ -1,0 +1,26 @@
+-classpath
+'/Users/jramsdale/Documents/workspaces/rio/kenya-parent/target/checkout/target/classes:/Users/jramsdale/Documents/workspaces/rio/kenya-parent/target/checkout/target/test-classes:/Users/jramsdale/Documents/workspaces/rio/kenya-parent/target/checkout/kenya-logger/target/classes:/Users/jramsdale/Documents/workspaces/rio/kenya-parent/target/checkout/kenya-logger/target/test-classes:/Users/jramsdale/Documents/workspaces/rio/kenya-parent/target/checkout/kenya-fakeapp/target/classes:/Users/jramsdale/Documents/workspaces/rio/kenya-parent/target/checkout/kenya-fakeapp/target/test-classes:/Users/jramsdale/Documents/workspaces/rio/kenya-parent/target/checkout/kenya-runner/target/classes:/Users/jramsdale/Documents/workspaces/rio/kenya-parent/target/checkout/kenya-runner/target/test-classes:/Users/jramsdale/.m2/repository/org/codehaus/plexus/plexus-classworlds/2.4/plexus-classworlds-2.4.jar:/Users/jramsdale/.m2/repository/org/apache/maven/wagon/wagon-ssh-common/1.0-beta-7/wagon-ssh-common-1.0-beta-7.jar:/Users/jramsdale/.m2/repository/org/apache/maven/maven-model-builder/3.0.3/maven-model-builder-3.0.3.jar:/Users/jramsdale/.m2/repository/org/codehaus/plexus/plexus-interactivity-api/1.0-alpha-6/plexus-interactivity-api-1.0-alpha-6.jar:/Users/jramsdale/.m2/repository/org/sonatype/aether/aether-spi/1.12/aether-spi-1.12.jar:/Users/jramsdale/.m2/repository/org/sonatype/plexus/plexus-sec-dispatcher/1.3/plexus-sec-dispatcher-1.3.jar:/Users/jramsdale/.m2/repository/junit/junit/4.8.2/junit-4.8.2.jar:/Users/jramsdale/Documents/workspaces/rio/kenya-parent/target/checkout/kenya-logger/target/classes:/Users/jramsdale/.m2/repository/org/sonatype/sisu/sisu-inject-bean/2.2.2/sisu-inject-bean-2.2.2.jar:/Users/jramsdale/.m2/repository/org/apache/maven/maven-settings/3.0.3/maven-settings-3.0.3.jar:/Users/jramsdale/.m2/repository/commons-io/commons-io/2.0.1/commons-io-2.0.1.jar:/Users/jramsdale/.m2/repository/com/google/guava/guava/r09/guava-r09.jar:/Users/jramsdale/.m2/repository/org/apache/maven/wagon/wagon-provider-api/1.0-beta-6/wagon-provider-api-1.0-beta-6.jar:/Users/jramsdale/.m2/repository/com/ning/async-http-client/1.6.3/async-http-client-1.6.3.jar:/Users/jramsdale/.m2/repository/org/sonatype/aether/aether-connector-asynchttpclient/1.12/aether-connector-asynchttpclient-1.12.jar:/Users/jramsdale/.m2/repository/org/codehaus/plexus/plexus-utils/2.0.7/plexus-utils-2.0.7.jar:/Users/jramsdale/.m2/repository/org/sonatype/aether/aether-connector-wagon/1.12/aether-connector-wagon-1.12.jar:/Users/jramsdale/.m2/repository/org/apache/maven/maven-model/3.0.3/maven-model-3.0.3.jar:/Users/jramsdale/Documents/workspaces/rio/kenya-parent/target/checkout/kenya-fakeapp/target/classes:/Users/jramsdale/.m2/repository/org/sonatype/aether/aether-impl/1.12/aether-impl-1.12.jar:/Users/jramsdale/.m2/repository/org/sonatype/sisu/sisu-guice/3.0.2/sisu-guice-3.0.2-no_aop.jar:/Users/jramsdale/.m2/repository/org/apache/maven/maven-aether-provider/3.0.3/maven-aether-provider-3.0.3.jar:/Users/jramsdale/.m2/repository/org/apache/maven/maven-settings-builder/3.0.3/maven-settings-builder-3.0.3.jar:/Users/jramsdale/.m2/repository/org/apache/maven/maven-repository-metadata/3.0.3/maven-repository-metadata-3.0.3.jar:/Users/jramsdale/.m2/repository/org/sonatype/plexus/plexus-cipher/1.4/plexus-cipher-1.4.jar:/Users/jramsdale/.m2/repository/org/sonatype/aether/aether-api/1.12/aether-api-1.12.jar:/Users/jramsdale/.m2/repository/org/sonatype/aether/aether-util/1.12/aether-util-1.12.jar:/Users/jramsdale/.m2/repository/org/codehaus/plexus/plexus-interpolation/1.14/plexus-interpolation-1.14.jar:/Users/jramsdale/.m2/repository/org/jboss/netty/netty/3.2.4.Final/netty-3.2.4.Final.jar:/Users/jramsdale/.m2/repository/org/slf4j/slf4j-api/1.6.1/slf4j-api-1.6.1.jar:/Users/jramsdale/.m2/repository/org/slf4j/slf4j-simple/1.6.1/slf4j-simple-1.6.1.jar:/Users/jramsdale/.m2/repository/org/sonatype/sisu/sisu-inject-plexus/2.2.2/sisu-inject-plexus-2.2.2.jar:/Users/jramsdale/.m2/repository/org/codehaus/plexus/plexus-component-annotations/1.5.5/plexus-component-annotations-1.5.5.jar:/Users/jramsdale/.m2/repository/org/sonatype/aether/aether-connector-file/1.12/aether-connector-file-1.12.jar:/Users/jramsdale/.m2/repository/org/apache/maven/wagon/wagon-ssh/1.0-beta-7/wagon-ssh-1.0-beta-7.jar:/Users/jramsdale/.m2/repository/com/jcraft/jsch/0.1.38/jsch-0.1.38.jar'
+-encoding
+'UTF-8'
+-protected
+-sourcepath
+'/Users/jramsdale/Documents/workspaces/rio/kenya-parent/target/checkout/kenya-fakeapp/src/test/java:/Users/jramsdale/Documents/workspaces/rio/kenya-parent/target/checkout/kenya-runner/src/test/java'
+-author
+-bottom
+'Copyright &#169; 2011 <a href="https://github.com/jramsdale/">Jeff Ramsdale</a>. All Rights Reserved.'
+-charset
+'UTF-8'
+-d
+'/Users/jramsdale/Documents/workspaces/rio/kenya-parent/target/checkout/target/site/testapidocs'
+-docencoding
+'UTF-8'
+-doctitle
+'Kenya 1.0.0 Test API'
+-link
+'../apidocs'
+-linkoffline
+'http://download.oracle.com/javase/6/docs/api' '/Users/jramsdale/Documents/workspaces/rio/kenya-parent/target/checkout/target/javadoc-bundle-options'
+-use
+-version
+-windowtitle
+'Kenya 1.0.0 Test API'
