@@ -84,8 +84,9 @@ The help text:
                 Fully qualified name of main class to run
                 Defaults to value of Main-Class attribute in MANIFEST.MF
                 
-        -Dkenya.type=<artifactType>
-    
+        -Dkenya.verbose
+    			Increase Kenya output verbosity.
+    			
         -Dkenya.scope=<mavenScope>
                 Maven classpath scope, one of "compile", "provided", "runtime"
                 or "test"

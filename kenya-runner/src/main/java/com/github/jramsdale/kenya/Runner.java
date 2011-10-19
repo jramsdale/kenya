@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.nio.charset.Charset;
@@ -16,7 +17,16 @@ import java.util.Properties;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.zip.ZipEntry;
 
+import org.apache.maven.model.Model;
+import org.apache.maven.model.building.DefaultModelBuilderFactory;
+import org.apache.maven.model.building.DefaultModelBuildingRequest;
+import org.apache.maven.model.building.ModelBuilder;
+import org.apache.maven.model.building.ModelBuildingException;
+import org.apache.maven.model.building.ModelBuildingRequest;
+import org.apache.maven.model.building.ModelSource;
+import org.apache.maven.model.building.StringModelSource;
 import org.apache.maven.repository.internal.MavenRepositorySystemSession;
 import org.apache.maven.settings.Profile;
 import org.apache.maven.settings.Repository;
@@ -35,9 +45,9 @@ import org.sonatype.aether.RepositorySystem;
 import org.sonatype.aether.RepositorySystemSession;
 import org.sonatype.aether.artifact.Artifact;
 import org.sonatype.aether.collection.CollectRequest;
-import org.sonatype.aether.collection.DependencyCollectionException;
 import org.sonatype.aether.graph.Dependency;
-import org.sonatype.aether.graph.DependencyNode;
+import org.sonatype.aether.impl.ArtifactResolver;
+import org.sonatype.aether.impl.RemoteRepositoryManager;
 import org.sonatype.aether.repository.LocalRepository;
 import org.sonatype.aether.repository.RemoteRepository;
 import org.sonatype.aether.repository.RepositoryPolicy;
@@ -46,12 +56,16 @@ import org.sonatype.aether.resolution.ArtifactResolutionException;
 import org.sonatype.aether.resolution.ArtifactResult;
 import org.sonatype.aether.resolution.DependencyRequest;
 import org.sonatype.aether.resolution.DependencyResolutionException;
+import org.sonatype.aether.resolution.DependencyResult;
 import org.sonatype.aether.util.artifact.DefaultArtifact;
 import org.sonatype.aether.util.artifact.JavaScopes;
-import org.sonatype.aether.util.graph.PreorderNodeListGenerator;
+import org.sonatype.aether.util.filter.ExclusionsDependencyFilter;
+import org.sonatype.aether.util.graph.DefaultDependencyNode;
 import org.sonatype.guice.bean.binders.WireModule;
 import org.sonatype.guice.bean.reflect.URLClassSpace;
 import org.sonatype.guice.plexus.shim.PlexusSpaceModule;
+
+import thirdparty.org.apache.maven.repository.internal.DefaultModelResolver;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -66,12 +80,11 @@ public class Runner {
 	private static final String PROJECT_NAME = "kenya";
 
 	static final String PROPERTY_GAV = PROJECT_NAME + ".gav";
-	// FIXME: Support type?
-	static final String PROPERTY_TYPE = PROJECT_NAME + ".type";
 	static final String PROPERTY_JAR = PROJECT_NAME + ".jar";
 	static final String PROPERTY_MAIN = PROJECT_NAME + ".main";
 	static final String PROPERTY_REPO = PROJECT_NAME + ".repo";
 	static final String PROPERTY_SCOPE = PROJECT_NAME + ".scope";
+	static final String PROPERTY_VERBOSE = PROJECT_NAME + ".verbose";
 	static final String PROPERTY_LOG_LEVEL = PROJECT_NAME + ".logLevel";
 	static final String PROPERTY_SETTINGS = PROJECT_NAME + ".settings";
 
@@ -86,14 +99,19 @@ public class Runner {
 	private String artifactGavProperty;
 	private String repoPathProperty;
 	private String mainClassProperty;
+	private String settingsPathProperty;
+
+	private boolean isVerbose = false;
 
 	private String javaScope;
 
-	private Launcher launcher = new Launcher();
-
-	private String settingsPath;
+	private final Launcher launcher;
 
 	private Injector injector;
+
+	private RepositorySystem repoSystem;
+	private RepositorySystemSession session;
+	private List<RemoteRepository> remoteRepositories;
 
 	public Runner() {
 
@@ -104,20 +122,15 @@ public class Runner {
 		injector = Guice.createInjector(new WireModule(new PlexusSpaceModule(new URLClassSpace(getClass()
 				.getClassLoader()))));
 
-		final RepositorySystem repoSystem = injector.getInstance(RepositorySystem.class);
-		final RepositorySystemSession session = newSession(repoSystem, repoPathProperty);
+		repoSystem = injector.getInstance(RepositorySystem.class);
+		session = newSession();
+		remoteRepositories = getRemoteRepositories(loadSettings());
 
-		final Settings settings = getSettingsForPath(settingsPath);
-		final List<RemoteRepository> remoteRepositories = getRemoteRepositories(settings);
-
-		final Artifact rootArtifact = resolveRootArtifact(repoSystem, session, remoteRepositories);
-		final List<Artifact> artifacts = resolveDependencies(rootArtifact, repoSystem, session, remoteRepositories);
-
-		final Attributes manifestAttributes = getManifestAttributes(rootArtifact);
-		final String mainClass = getMainClass(mainClassProperty, rootArtifact, manifestAttributes);
-
-		launcher.setWorld(setupClassWorld(artifacts));
-		launcher.setAppMain(mainClass, APP_REALM);
+		if (jarPathProperty != null) {
+			launcher = createLauncherForJar();
+		} else {
+			launcher = createLauncherForGav();
+		}
 	}
 
 	private void printVersion() {
@@ -127,6 +140,13 @@ public class Runner {
 	}
 
 	private void initFromProperties() {
+		// Detect verbose first
+		final String isVerboseProperty = System.getProperty(PROPERTY_VERBOSE);
+		if (isVerboseProperty != null) {
+			isVerbose = true;
+			printIfVerboseOn("Found system property [" + PROPERTY_VERBOSE + "]. Verbose output enabled.");
+		}
+
 		final String logLevelProperty = System.getProperty(PROPERTY_LOG_LEVEL);
 		final Level level;
 		if (logLevelProperty != null) {
@@ -138,27 +158,34 @@ public class Runner {
 		logger = LoggerFactory.getLogger(Runner.class);
 
 		if (logLevelProperty != null) {
-			logPropertyDiscovery(PROPERTY_LOG_LEVEL, logLevelProperty);
+			printPropertyDiscovery(PROPERTY_LOG_LEVEL, level.name());
 		}
 
-		settingsPath = System.getProperty(PROPERTY_SETTINGS);
-		if (settingsPath != null) {
-			logPropertyDiscovery(PROPERTY_SETTINGS, settingsPath);
+		settingsPathProperty = System.getProperty(PROPERTY_SETTINGS);
+		if (settingsPathProperty != null) {
+			printPropertyDiscovery(PROPERTY_SETTINGS, settingsPathProperty);
 		}
 
 		jarPathProperty = System.getProperty(PROPERTY_JAR);
 		if (jarPathProperty != null) {
-			logPropertyDiscovery(PROPERTY_JAR, jarPathProperty);
+			printPropertyDiscovery(PROPERTY_JAR, jarPathProperty);
 		}
 
 		artifactGavProperty = System.getProperty(PROPERTY_GAV);
 		if (artifactGavProperty != null) {
-			logPropertyDiscovery(PROPERTY_GAV, artifactGavProperty);
+			printPropertyDiscovery(PROPERTY_GAV, artifactGavProperty);
 		}
 
+		if (jarPathProperty == null && artifactGavProperty == null) {
+			throw new KenyaHelpException("Must provide either " + PROJECT_NAME + ".jar or " + PROJECT_NAME
+					+ ".gav, but not both");
+		}
+		if (jarPathProperty != null && artifactGavProperty != null) {
+			throw new KenyaHelpException("Cannot provide both " + PROJECT_NAME + ".jar and " + PROJECT_NAME + ".gav");
+		}
 		repoPathProperty = System.getProperty(PROPERTY_REPO);
 		if (repoPathProperty != null) {
-			logPropertyDiscovery(PROPERTY_REPO, repoPathProperty);
+			printPropertyDiscovery(PROPERTY_REPO, repoPathProperty);
 		}
 
 		final String scopeProperty = System.getProperty(PROPERTY_SCOPE);
@@ -170,12 +197,12 @@ public class Runner {
 					javaScope = scope;
 				}
 			}
-			logPropertyDiscovery(PROPERTY_SCOPE, scopeProperty);
+			printPropertyDiscovery(PROPERTY_SCOPE, scopeProperty);
 		}
 
 		mainClassProperty = System.getProperty(PROPERTY_MAIN);
 		if (mainClassProperty != null) {
-			logPropertyDiscovery(PROPERTY_MAIN, mainClassProperty);
+			printPropertyDiscovery(PROPERTY_MAIN, mainClassProperty);
 		}
 
 		boolean isRunnerPropertyFound = false;
@@ -191,16 +218,26 @@ public class Runner {
 		}
 	}
 
-	private void logPropertyDiscovery(String propertyName, String propertyValue) {
-		logger.debug("Found system property [{}] with value: {}", propertyName, propertyValue);
+	private void printPropertyDiscovery(String propertyName, String propertyValue) {
+		printIfVerboseOn("Found system property [" + propertyName + "] with value: " + propertyValue);
 	}
 
-	private RepositorySystemSession newSession(RepositorySystem system, String repoProperty) {
+	private void printIfVerboseOn(String message) {
+		printIfVerboseOn(message, System.out);
+	}
+
+	private void printIfVerboseOn(String message, PrintStream stream) {
+		if (isVerbose) {
+			stream.println(message);
+		}
+	}
+
+	private RepositorySystemSession newSession() {
 		final File localRepositoryFile;
-		if (repoProperty == null) {
+		if (repoPathProperty == null) {
 			localRepositoryFile = new File(System.getProperty(USER_HOME), M2 + File.separator + REPOSITORY);
 		} else {
-			localRepositoryFile = new File(repoProperty);
+			localRepositoryFile = new File(repoPathProperty);
 			if (!localRepositoryFile.exists()) {
 				throw new KenyaHelpException("Provided repository path [" + localRepositoryFile + "] does not exist");
 			}
@@ -209,87 +246,28 @@ public class Runner {
 						+ "] is not a directory");
 			}
 		}
-		final LocalRepository localRepository = new LocalRepository(localRepositoryFile);
 		final MavenRepositorySystemSession session = new MavenRepositorySystemSession();
-		session.setLocalRepositoryManager(system.newLocalRepositoryManager(localRepository));
+		final LocalRepository localRepository = new LocalRepository(localRepositoryFile);
+		session.setLocalRepositoryManager(repoSystem.newLocalRepositoryManager(localRepository));
 		return session;
 	}
 
-	private Artifact getRootArtifactTemplate(String jarPath, String gav) {
-		if (jarPath == null && gav == null) {
-			throw new KenyaHelpException("Must provide either " + PROJECT_NAME + ".jar or " + PROJECT_NAME
-					+ ".gav, but not both");
-		}
-		if (jarPath != null) {
-			if (gav != null) {
-				throw new KenyaHelpException("Cannot provide both " + PROJECT_NAME + ".jar and " + PROJECT_NAME
-						+ ".gav");
-			} else {
-				return createArtifactFromJar(jarPath);
-			}
-		}
-		return new DefaultArtifact(gav);
-	}
-
-	// FIXME: This mechanism doesn't actually use the provided jar. It just gets the pom.properties.
-	private Artifact createArtifactFromJar(String jarPath) {
-		final JarFile jarFile;
-		try {
-			jarFile = new JarFile(jarPath);
-		} catch (IOException e) {
-			throw new KenyaException("Could not load jar from file: " + jarPath, e);
-		}
-		for (JarEntry jarEntry : Collections.list(jarFile.entries())) {
-			if (jarEntry.getName().startsWith("META-INF/maven/") && jarEntry.getName().endsWith("/pom.properties")) {
-				final Properties pomProperties = new Properties();
-				try {
-					pomProperties.load(jarFile.getInputStream(jarEntry));
-					return new DefaultArtifact(pomProperties.getProperty("groupId"),
-							pomProperties.getProperty("artifactId"), "jar", pomProperties.getProperty("version"));
-				} catch (IOException e) {
-					throw new KenyaException("Couldn't load pom.properties from artifact: " + jarPath, e);
-				}
-			}
-		}
-		throw new KenyaHelpException("Couldn't find pom.properties in artifact: " + jarPath);
-	}
-
-	private List<Artifact> resolveDependencies(Artifact rootArtifact, final RepositorySystem repoSystem,
-			final RepositorySystemSession session, final List<RemoteRepository> remoteRepositories) {
-		final CollectRequest collectRequest = new CollectRequest(new Dependency(rootArtifact, javaScope),
-				remoteRepositories);
-		try {
-			final DependencyNode node = repoSystem.collectDependencies(session, collectRequest).getRoot();
-			repoSystem.resolveDependencies(session, new DependencyRequest(node, null));
-			final PreorderNodeListGenerator nlg = new PreorderNodeListGenerator();
-			node.accept(nlg);
-			rootArtifact = node.getDependency().getArtifact();
-			// TODO: What to do with unresolved artifacts?
-			return nlg.getArtifacts(false);
-		} catch (DependencyCollectionException e) {
-			throw new KenyaException("Internal error", e);
-		} catch (DependencyResolutionException e) {
-			throw new KenyaException("Internal error", e);
-		}
-	}
-
-	private Settings getSettingsForPath(String settingsPath) {
+	private Settings loadSettings() {
 		final File userSettingsFile;
-		if (settingsPath == null) {
+		if (settingsPathProperty == null) {
 			userSettingsFile = new File(System.getProperty(USER_HOME), M2 + File.separator + SETTINGS_XML);
 		} else {
-			userSettingsFile = new File(settingsPath);
+			userSettingsFile = new File(settingsPathProperty);
 		}
 		if (userSettingsFile.exists()) {
-			logger.info("Using settings file for path: {}", userSettingsFile);
+			printIfVerboseOn("Using settings file: " + userSettingsFile);
 		} else {
-			logger.warn("Settings file does not exist: {}", settingsPath);
+			printIfVerboseOn("WARN: Settings file does not exist: " + settingsPathProperty, System.err);
 		}
-		final DefaultSettingsBuildingRequest request = new DefaultSettingsBuildingRequest();
-		request.setUserSettingsFile(userSettingsFile);
+		final DefaultSettingsBuildingRequest request = new DefaultSettingsBuildingRequest()
+				.setUserSettingsFile(userSettingsFile);
 		try {
-			final SettingsBuilder settingsBuilder = injector.getInstance(SettingsBuilder.class);
-			return settingsBuilder.build(request).getEffectiveSettings();
+			return injector.getInstance(SettingsBuilder.class).build(request).getEffectiveSettings();
 		} catch (SettingsBuildingException e) {
 			throw new KenyaException("Failed to load settings", e);
 		}
@@ -298,7 +276,6 @@ public class Runner {
 	private final List<RemoteRepository> getRemoteRepositories(Settings settings) {
 		final List<RemoteRepository> repositories = new ArrayList<RemoteRepository>();
 		repositories.add(new RemoteRepository("central", "default", MAVEN_CENTRAL_REPOSITORY));
-		@SuppressWarnings("unchecked")
 		final Map<String, Profile> profilesAsMap = settings.getProfilesAsMap();
 		for (String profileName : settings.getActiveProfiles()) {
 			final Profile profile = profilesAsMap.get(profileName);
@@ -317,16 +294,159 @@ public class Runner {
 		return repositories;
 	}
 
-	private Artifact resolveRootArtifact(final RepositorySystem repoSystem, final RepositorySystemSession session,
-			List<RemoteRepository> remoteRepositories) {
-		final Artifact rootArtifactTemplate = getRootArtifactTemplate(jarPathProperty, artifactGavProperty);
+	private Launcher createLauncherForJar() {
+		final Artifact rootArtifact = createArtifactFromJar(jarPathProperty);
+		final Model model = loadModel(rootArtifact);
+		final CollectRequest collectRequest = new CollectRequest(convertDependencies(model.getDependencies()),
+				convertDependencies(model.getDependencyManagement().getDependencies()), remoteRepositories);
+		final ExclusionsDependencyFilter filter = new ExclusionsDependencyFilter(Collections.singleton(rootArtifact
+				.getGroupId() + ":" + rootArtifact.getArtifactId()));
+		final DependencyRequest dependencyRequest = new DependencyRequest(collectRequest, filter)
+				.setCollectRequest(collectRequest);
+		return createLauncherForDependencyRequest(repoSystem, session, dependencyRequest, rootArtifact);
+	}
+
+	private Model loadModel(final Artifact rootArtifact) {
 		try {
-			final ArtifactRequest artifactRequest = new ArtifactRequest(rootArtifactTemplate, remoteRepositories, null);
+			final JarFile jarFile = new JarFile(rootArtifact.getFile());
+			final ZipEntry pomEntry = jarFile.getEntry("META-INF/maven/" + rootArtifact.getGroupId() + "/"
+					+ rootArtifact.getArtifactId() + "/pom.xml");
+			final ModelBuildingRequest request = new DefaultModelBuildingRequest();
+			final ArtifactResolver resolver = injector.getInstance(ArtifactResolver.class);
+			final RemoteRepositoryManager manager = injector.getInstance(RemoteRepositoryManager.class);
+			request.setModelResolver(new DefaultModelResolver(session, null, null, resolver, manager,
+					remoteRepositories));
+			request.setModelSource(loadPomIntoModelSource(jarFile, pomEntry));
+			request.setProcessPlugins(false);
+			request.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL);
+			final ModelBuilder modelBuilder = injector.getInstance(DefaultModelBuilderFactory.class).newInstance();
+			return modelBuilder.build(request).getEffectiveModel();
+		} catch (IOException e) {
+			throw new KenyaException("Couldn't load pom from jar: " + rootArtifact.getFile(), e);
+		} catch (ModelBuildingException e) {
+			throw new KenyaException("Couldn't build pom from jar: " + rootArtifact.getFile(), e);
+		}
+	}
+
+	private List<Dependency> convertDependencies(List<org.apache.maven.model.Dependency> modelDependencies) {
+		final List<Dependency> dependencies = new ArrayList<Dependency>();
+		if (modelDependencies != null) {
+			for (org.apache.maven.model.Dependency dependency : modelDependencies) {
+				final Artifact artifact = new DefaultArtifact(dependency.getGroupId(), dependency.getArtifactId(),
+						dependency.getClassifier(), dependency.getType(), dependency.getVersion());
+				dependencies.add(new Dependency(artifact, dependency.getScope()));
+			}
+		}
+		return dependencies;
+	}
+
+	private ModelSource loadPomIntoModelSource(JarFile jarFile, ZipEntry pomEntry) {
+		final StringBuilder pom = new StringBuilder();
+		BufferedReader in = null;
+		try {
+			in = new BufferedReader(new InputStreamReader(jarFile.getInputStream(pomEntry)));
+			String line;
+			while ((line = in.readLine()) != null) {
+				pom.append(line);
+			}
+		} catch (IOException e) {
+			throw new KenyaException("Couldn't load pom [" + pomEntry + "] from jar [" + jarFile + "]", e);
+		} finally {
+			try {
+				in.close();
+			} catch (IOException e) {
+				throw new KenyaException("Failed to close pom", e);
+			}
+		}
+		return new StringModelSource(pom.toString());
+	}
+
+	private Artifact createArtifactFromJar(String jarPath) {
+		final JarFile jarFile;
+		try {
+			jarFile = new JarFile(jarPath);
+		} catch (IOException e) {
+			throw new KenyaException("Could not load jar from file: " + jarPath, e);
+		}
+		for (JarEntry jarEntry : Collections.list(jarFile.entries())) {
+			if (jarEntry.getName().startsWith("META-INF/maven/") && jarEntry.getName().endsWith("/pom.properties")) {
+				try {
+					final Properties pomProperties = new Properties();
+					pomProperties.load(jarFile.getInputStream(jarEntry));
+					final DefaultArtifact artifact = new DefaultArtifact(pomProperties.getProperty("groupId"),
+							pomProperties.getProperty("artifactId"), "jar", pomProperties.getProperty("version"));
+					return artifact.setFile(new File(jarPath));
+				} catch (IOException e) {
+					throw new KenyaException("Couldn't load pom.properties from artifact: " + jarPath, e);
+				}
+			}
+		}
+		throw new KenyaHelpException("Couldn't find pom.properties in artifact: " + jarPath);
+	}
+
+	private Launcher createLauncherForGav() {
+		final Artifact rootArtifactTemplate = new DefaultArtifact(artifactGavProperty);
+		final Artifact rootArtifact;
+		try {
+			final DefaultDependencyNode dependencyNode = new DefaultDependencyNode(new Dependency(rootArtifactTemplate,
+					javaScope));
+			final ArtifactRequest artifactRequest = new ArtifactRequest(dependencyNode);
+			artifactRequest.setRepositories(remoteRepositories);
 			final ArtifactResult artifactResult = repoSystem.resolveArtifact(session, artifactRequest);
-			return artifactResult.getArtifact();
+			rootArtifact = artifactResult.getArtifact();
 		} catch (ArtifactResolutionException e) {
 			throw new KenyaException("Error resolving artifact: " + rootArtifactTemplate, e);
 		}
+		final CollectRequest collectRequest = new CollectRequest(new Dependency(rootArtifact, javaScope),
+				remoteRepositories);
+		final DependencyRequest dependencyRequest = new DependencyRequest(collectRequest, null);
+		return createLauncherForDependencyRequest(repoSystem, session, dependencyRequest, null);
+	}
+
+	private Launcher createLauncherForDependencyRequest(RepositorySystem repoSystem, RepositorySystemSession session,
+			final DependencyRequest dependencyRequest, Artifact rootArtifactTemplate) {
+		try {
+			final DependencyResult dependencyResult = repoSystem.resolveDependencies(session, dependencyRequest);
+			final List<Artifact> artifacts = new ArrayList<Artifact>();
+			printIfVerboseOn("Classpath entries:");
+			for (ArtifactResult artifactResult : dependencyResult.getArtifactResults()) {
+				artifacts.add(artifactResult.getArtifact());
+				printIfVerboseOn("    " + artifactResult.getArtifact().getFile());
+			}
+			final Artifact rootArtifact;
+			if (rootArtifactTemplate != null) {
+				artifacts.add(rootArtifactTemplate);
+				printIfVerboseOn("    " + rootArtifactTemplate.getFile());
+				rootArtifact = rootArtifactTemplate;
+			} else {
+				rootArtifact = dependencyResult.getRoot().getDependency().getArtifact();
+			}
+
+			final Attributes manifestAttributes = getManifestAttributes(rootArtifact);
+			final String mainClass = getMainClass(mainClassProperty, rootArtifact, manifestAttributes);
+
+			final Launcher launcher = new Launcher();
+			launcher.setWorld(classWorldForArtifacts(artifacts));
+			launcher.setAppMain(mainClass, APP_REALM);
+			return launcher;
+		} catch (DependencyResolutionException e) {
+			throw new KenyaException("Internal error", e);
+		}
+	}
+
+	private ClassWorld classWorldForArtifacts(final List<Artifact> artifacts) {
+		final ClassWorld classWorld = new ClassWorld();
+		try {
+			final ClassRealm realm = classWorld.newRealm(APP_REALM);
+			for (Artifact artifact : artifacts) {
+				realm.addURL(artifact.getFile().toURI().toURL());
+			}
+		} catch (DuplicateRealmException e) {
+			throw new KenyaException("Internal error", e);
+		} catch (MalformedURLException e) {
+			throw new KenyaException("Internal error", e);
+		}
+		return classWorld;
 	}
 
 	private Attributes getManifestAttributes(Artifact rootArtifact) {
@@ -341,6 +461,7 @@ public class Runner {
 
 	private String getMainClass(String mainClassFromProperty, Artifact rootArtifact, Attributes manifestAttributes) {
 		if (mainClassFromProperty != null) {
+			printIfVerboseOn("Running provided main class: " + mainClassFromProperty);
 			return mainClassFromProperty;
 		}
 		final String mainClassFromManifest = (String) manifestAttributes.get(Attributes.Name.MAIN_CLASS);
@@ -348,23 +469,9 @@ public class Runner {
 			throw new KenyaHelpException("Artifact didn't have a Main-Class attribute in MANIFEST.MF: "
 					+ rootArtifact.getFile());
 		} else {
+			printIfVerboseOn("Using main class discovered in MANIFEST.MF: " + mainClassFromManifest);
 			return mainClassFromManifest;
 		}
-	}
-
-	private ClassWorld setupClassWorld(List<Artifact> artifacts) {
-		final ClassWorld classWorld = new ClassWorld();
-		try {
-			final ClassRealm realm = classWorld.newRealm(APP_REALM);
-			for (Artifact artifact : artifacts) {
-				realm.addURL(artifact.getFile().toURI().toURL());
-			}
-		} catch (DuplicateRealmException e) {
-			throw new KenyaException("Internal error", e);
-		} catch (MalformedURLException e) {
-			throw new KenyaException("Internal error", e);
-		}
-		return classWorld;
 	}
 
 	private void run(String[] args) {
