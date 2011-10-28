@@ -63,7 +63,7 @@ When kenya.jar is run without Kenya-specific system properties, Kenya displays i
 
 The help text:
 
-    Kenya Runner, version: 1.0.0-SNAPSHOT
+    Kenya Runner, version: 1.1
     Kenya Runner is a utility that runs Java applications by assembling a
     runtime classpath using Maven metadata associated with jars. This dramatically
     simplifies the commandline required to run Java applications comprising
