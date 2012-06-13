@@ -44,7 +44,7 @@ public class RunnerTest {
 		// FIXME: Need a released test subject so test can run reliably
 		System.setProperty("kenya.gav", "com.github.jramsdale.kenya:kenya-fakeapp:1.0.0-SNAPSHOT");
 		System.setProperty("kenya.main", FakeApp.class.getCanonicalName());
-		Runner.main(new String[] {});
+		ContainerRunner.main(new String[] {});
 		final List<String> lines = Lists.newArrayList(Splitter.on(LINE_SEPARATOR).omitEmptyStrings().split(console.toString()));
 		assertTrue(lines.get(0).startsWith("Kenya Runner"));
 		assertEquals("Classpath:", lines.get(1));
