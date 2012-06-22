@@ -54,7 +54,7 @@
 <a class="jxr_linenumber" name="44" href="#44">44</a>  		<em class="jxr_comment">// FIXME: Need a released test subject so test can run reliably</em>
 <a class="jxr_linenumber" name="45" href="#45">45</a>  		System.setProperty(<span class="jxr_string">"kenya.gav"</span>, <span class="jxr_string">"com.github.jramsdale.kenya:kenya-fakeapp:1.0.0-SNAPSHOT"</span>);
 <a class="jxr_linenumber" name="46" href="#46">46</a>  		System.setProperty(<span class="jxr_string">"kenya.main"</span>, FakeApp.<strong class="jxr_keyword">class</strong>.getCanonicalName());
-<a class="jxr_linenumber" name="47" href="#47">47</a>  		Runner.main(<strong class="jxr_keyword">new</strong> String[] {});
+<a class="jxr_linenumber" name="47" href="#47">47</a>  		ContainerRunner.main(<strong class="jxr_keyword">new</strong> String[] {});
 <a class="jxr_linenumber" name="48" href="#48">48</a>  		<strong class="jxr_keyword">final</strong> List&lt;String&gt; lines = Lists.newArrayList(Splitter.on(LINE_SEPARATOR).omitEmptyStrings().split(console.toString()));
 <a class="jxr_linenumber" name="49" href="#49">49</a>  		assertTrue(lines.get(0).startsWith(<span class="jxr_string">"Kenya Runner"</span>));
 <a class="jxr_linenumber" name="50" href="#50">50</a>  		assertEquals(<span class="jxr_string">"Classpath:"</span>, lines.get(1));
